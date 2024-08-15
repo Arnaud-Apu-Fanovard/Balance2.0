@@ -43,21 +43,21 @@ DHT dht(DHT_pin, typeDeDHT);
 LiquidCrystal_I2C lcd(0x27,16,2);
 
 // Timer et délai
-unsigned long currentTime = 0;
-unsigned long previousTime_Send_Data = 0;
-unsigned long previousTime_Send_Data_Offline = 0;
-unsigned long previousTime_dht22 = 0;
-int Delay_Send_Data = 100;
-int Delay_Send_Data_Offline = 100;
-int Delay_dht22 = 2000;
-unsigned long previousTimer_Received_Data = 0;
-unsigned long Delay_Received_Data = 60000;
-unsigned long Timer_Received_Data = 0;
-unsigned long previousTime_blink_R = 0;
-unsigned long previousTime_blink_O = 0;
-unsigned long previousTime_blink_V = 0;
-unsigned long previousTime_blink_B = 0;
-int Delay_led = 500;
+// unsigned long currentTime = 0;
+// unsigned long previousTime_Send_Data = 0;
+// unsigned long previousTime_Send_Data_Offline = 0;
+// unsigned long previousTime_dht22 = 0;
+// int Delay_Send_Data = 100;
+// int Delay_Send_Data_Offline = 100;
+// int Delay_dht22 = 2000;
+// unsigned long previousTimer_Received_Data = 0;
+// unsigned long Delay_Received_Data = 10000;
+// unsigned long Timer_Received_Data = 0;
+// unsigned long previousTime_blink_R = 0;
+// unsigned long previousTime_blink_O = 0;
+// unsigned long previousTime_blink_V = 0;
+// unsigned long previousTime_blink_B = 0;
+// int Delay_led = 500;
 
 // Variables
 String message;
@@ -65,7 +65,7 @@ String data;
 String sub;
 bool error_get_data;
 int ID_Arduino_Soute = 1;
-bool time_send_data_ok = 0;
+bool send_data_ok = 0;
 bool ledstate_R = false;
 bool ledstate_O = false;
 bool ledstate_V = false;
@@ -94,7 +94,7 @@ typedef struct data_Received Data_Received;
 struct data_Offline
 {
   float Rho_beer = 1.013;
-  double Weight_fut_empty = 0;
+  double Weight_fut_empty = 6000;
   int Cl_beer = 250;
 };
 typedef struct data_Offline Data_Offline;
@@ -141,6 +141,40 @@ struct alarms
 };
 typedef struct alarms Alarms;
 
+struct delays
+{
+  unsigned long currentTime = 0;
+  int Delay_led = 500;
+  int Delay_Send_Data = 100;
+  int Delay_Send_Data_Offline = 100;
+  int Delay_dht22 = 2000;
+  int Delay_balance = 2000;
+  unsigned long previousTime_Send_Data = 0;
+  unsigned long previousTime_Send_Data_Offline = 0;
+  unsigned long previousTime_dht22 = 0;
+  unsigned long previousTimer_Received_Data = 0;
+  unsigned long previousTime_b1 = 0;
+  unsigned long previousTime_b2 = 0;
+  unsigned long previousTime_blink_R = 0;
+  unsigned long previousTime_blink_O = 0;
+  unsigned long previousTime_blink_V = 0;
+  unsigned long previousTime_blink_B = 0;
+  unsigned long Delay_Received_Data = 10000;
+  unsigned long Timer_Received_Data = 0;
+};
+typedef struct delays Delays;
+
+struct datas
+{
+  double weight_1_zero;
+  double weight_2_zero;
+  double weight_1;
+  double weight_2;
+  int weight_tole = 7750;
+};
+typedef struct datas Datas;
+
+
 // INIT DE MES STRUCTURE----------------------------------------------------------
 
 Data_Received data_received;
@@ -148,16 +182,247 @@ Data_Send data_send;
 Data_Send_Offline data_send_offline;
 Data_Offline data_offline;
 Alarms alarms_default;
+Delays delays;
+Datas datas;
+
 
 // MES FONCTIONS------------------------------------------------------------------
 
-void get_temp_hum()
+// SETUP FONCTIONS-----
+
+void setup_led()
 {
-  data_send.Hum_Soute = dht.readHumidity();
-  data_send.Temp_Soute = dht.readTemperature();
+  pinMode(Led_R, OUTPUT);
+  pinMode(Led_O, OUTPUT);
+  pinMode(Led_V, OUTPUT);
+  pinMode(Led_B, OUTPUT);
+  digitalWrite(Led_R, LOW);
+  digitalWrite(Led_O, LOW);
+  digitalWrite(Led_V, LOW);
+  digitalWrite(Led_B, LOW);
 }
 
-void get_nb_beers()
+void setup_com() // Initialisation de la communication RS485
+{
+  pinMode(Pin_Rs485, OUTPUT);
+  digitalWrite(Pin_Rs485, LOW);
+
+  Serial.begin(115200);
+  Serial.println("Balance starting...");
+  Serial.setTimeout(25);
+  while (!Serial)
+  {}
+}
+
+void setup_balance() // Initialisation des balances
+{
+  Balance_1.begin(DATA_HX711_1, CLK_HX711_1);
+  Balance_1.set_scale(23.412162);
+  Balance_1.tare(0);
+  Balance_2.begin(DATA_HX711_2, CLK_HX711_2);
+  Balance_2.set_scale(23.412162);
+  Balance_2.tare(0);
+}
+
+void setup_DHT() // Initialisation du capteur de température & humidité
+{
+  dht.begin();
+}
+
+void setup_LCD_debug() // Initialisation du LCD pour les tests
+{
+  
+  lcd.init();
+  lcd.clear();
+  lcd.backlight();
+  lcd.setCursor(0,0);  
+  lcd.print("Balance Info");
+}
+
+// LOOP FONCTIONS-----
+
+void sensors() //2.0
+{
+  if ((delays.currentTime - delays.previousTime_dht22) >= delays.Delay_dht22) {
+    data_send.Hum_Soute = dht.readHumidity();
+    data_send.Temp_Soute = dht.readTemperature();
+    delays.previousTime_dht22 = delays.currentTime;
+    // Serial.print("Hum:");
+    // Serial.print(data_send.Hum_Soute);
+    // Serial.print("  Temp:");
+    // Serial.println(data_send.Temp_Soute);
+  }
+
+  if(Balance_1.is_ready())
+  {
+    datas.weight_1_zero = -Balance_1.get_units(1);
+    datas.weight_1 = datas.weight_1_zero - datas.weight_tole;
+    delays.previousTime_b1 = delays.currentTime;
+    // Serial.print("B1:");
+    // Serial.print(datas.weight_1);
+    // Serial.print("   ");
+  }
+
+  if(Balance_2.is_ready())
+  {
+    datas.weight_2_zero = -Balance_2.get_units(1);
+    datas.weight_2 = datas.weight_2_zero - datas.weight_tole;
+    delays.previousTime_b2 = delays.currentTime;
+    // Serial.print("B2:");
+    // Serial.print(datas.weight_2);
+    // Serial.print("   ");
+  }
+}
+
+void get_nb_beers_b1(bool Online) //2.0
+{
+  double weight = datas.weight_1;
+  if (Online == HIGH)
+  {
+    weight -= data_received.Weight_fut_empty_1;
+    weight /= data_received.Rho_beer_1;
+    data_send.Nb_beer_1 = weight / data_received.Cl_beer_1;
+    // Serial.print("Beer1:");
+    // Serial.print(data_send.Nb_beer_1);
+    // Serial.print("   ");
+  }
+  else
+  {
+    weight -= data_offline.Weight_fut_empty;
+    weight /= data_offline.Rho_beer;
+    data_send_offline.Nb_beer_1 = weight / data_offline.Cl_beer;
+  }
+}
+
+void get_nb_beers_b2(bool Online) //2.0
+{
+  double weight = datas.weight_2;
+  if (Online == HIGH)
+  {
+    weight -= data_received.Weight_fut_empty_2;
+    weight /= data_received.Rho_beer_2;
+    data_send.Nb_beer_2 = weight / data_received.Cl_beer_2;
+    // Serial.print("Beer2:");
+    // Serial.print(data_send.Nb_beer_2);
+    // Serial.print("   ");
+  }
+  else
+  {
+    weight -= data_offline.Weight_fut_empty;
+    weight /= data_offline.Rho_beer;
+    data_send_offline.Nb_beer_2 = weight / data_offline.Cl_beer;
+  }
+}
+
+void alarms_b1() //2.0
+{
+  if (delays.currentTime - delays.Delay_balance > delays.previousTime_b1 )
+  {
+    alarms_default.Balance_1_Unplug = 1;
+    // alarms_default.Balance_1_def = 0;
+    alarms_default.B1_EndFut = 0;
+    alarms_default.B1_NoFut = 0;
+  }
+  else
+  {
+    alarms_default.Balance_1_Unplug = 0;
+    if (datas.weight_1 >= 70000)
+    {alarms_default.Balance_1_def = true;    }
+    else
+    {alarms_default.Balance_1_def = false;}
+
+    if (datas.weight_1 <= 5000 && datas.weight_1 >= 250 )
+    {
+      alarms_default.B1_EndFut = 1;
+      alarms_default.B1_NoFut = 0;
+    }
+    else if (datas.weight_1 < 250)
+    {
+      alarms_default.B1_EndFut = 0;
+      alarms_default.B1_NoFut = 1;
+    }
+    else
+    {
+      alarms_default.B1_EndFut = 0;
+      alarms_default.B1_NoFut = 0;
+    }
+  } 
+
+  // Serial.print(alarms_default.Balance_1_Unplug);
+  // Serial.print(alarms_default.Balance_1_def);
+  // Serial.print(alarms_default.B1_EndFut);
+  // Serial.println(alarms_default.B1_NoFut);
+
+}
+
+void alarms_b2() //2.0
+{
+  if (delays.currentTime - delays.Delay_balance > delays.previousTime_b2 )
+  {
+    alarms_default.Balance_2_Unplug = 1;
+    // alarms_default.Balance_2_def = 0;
+    alarms_default.B2_EndFut = 0;
+    alarms_default.B2_NoFut = 0;
+  }
+  else
+  {
+    alarms_default.Balance_2_Unplug = 0;
+    if (datas.weight_2 >= 70000)
+    {alarms_default.Balance_2_def = true;    }
+    else
+    {alarms_default.Balance_2_def = false;}
+
+    if (datas.weight_2 <= 5000 && datas.weight_2 >= 250 )
+    {
+      alarms_default.B2_EndFut = 1;
+      alarms_default.B2_NoFut = 0;
+    }
+    else if (datas.weight_2 < 250)
+    {
+      alarms_default.B2_EndFut = 0;
+      alarms_default.B2_NoFut = 1;
+    }
+    else
+    {
+      alarms_default.B2_EndFut = 0;
+      alarms_default.B2_NoFut = 0;
+    }
+  } 
+
+  // Serial.print(alarms_default.Balance_2_Unplug);
+  // Serial.print(alarms_default.Balance_2_def);
+  // Serial.print(alarms_default.B2_EndFut);
+  // Serial.println(alarms_default.B2_NoFut);
+}
+
+bool get_data() //1.0
+{
+  
+  if (Serial.available() > 0)
+  {
+    //delay(10);
+    //message = Serial.readStringUntil('\n');
+    message = Serial.readString(); //bonne fonction ne pas changer !!!
+    data = message;
+    //lcd.setCursor(0,1);  
+    //lcd.print(message);
+    //delay(10);
+    //digitalWrite(Pin_Rs485, HIGH);
+    //Serial.print("ArduinoReceived :");
+    //Serial.println(message);
+    //delay(10);
+    //digitalWrite(Pin_Rs485, LOW);
+
+    delays.Timer_Received_Data = delays.currentTime;
+    return 1;
+  }
+  else
+  {
+    return 0;  
+  }  
+}
+/*
+void get_nb_beers() //1.0
 {
   double weight_1;
   double weight_2;
@@ -168,7 +433,7 @@ void get_nb_beers()
     //Serial.print("Scale B1:");
     //Serial.print(Balance_1.get_scale());
     weight_1 = -Balance_1.get_units(1);
-    weight_1 = weight_1 - 7650;
+    weight_1 = weight_1 - 7750;
     //Serial.print(" Poids B1:");
     //Serial.println(weight_1);
     //Serial.println(data_received.Weight_fut_empty_1);
@@ -217,9 +482,11 @@ void get_nb_beers()
   
   if (data_received.balance_ena_2 == true && Balance_2.is_ready())
   {
-    weight_2 = Balance_2.get_units(1);
-    //Serial.print("   ");
-    //Serial.println(weight_2);
+    Balance_2.set_scale(23.553215003040);
+    //Serial.print("Scale B2:");
+    //Serial.print(Balance_2.get_scale());
+    weight_2 = -Balance_2.get_units(1);
+    weight_2 = weight_2 - 7750;
 
     if (weight_2 < data_received.Weight_fut_empty_2 )
     {
@@ -263,21 +530,34 @@ void get_nb_beers()
     }
   }
 }
+*/
+void nb_balance_offline(float weight,int balance)
+{
+  if (weight >= 0 && balance == 1)
+    {data_send_offline.balance_ena_1 = 1;}
+    else
+    {data_send_offline.balance_ena_1 = 0;}
 
-void get_nb_beers_offline() //intégrer le système d'alarme des deux balances pour cette fonction
+    if (weight >= 0 && balance == 2)
+    {data_send_offline.balance_ena_2 = 1;}
+    else
+    {data_send_offline.balance_ena_1 = 0;}
+}
+
+void get_nb_beers_offline() // TODO intégrer le système d'alarme des deux balances pour cette fonction
 {
   double weight_1;
   double weight_2;
 
   if (Balance_1.is_ready())
   {
-    Balance_1.set_scale(23.412162);
+    //Balance_1.set_scale(23.412162);
     //Serial.print("Scale B1 OFF:");
     //Serial.print(Balance_1.get_scale());
     weight_1 = -Balance_1.get_units(1);
-    weight_1 = weight_1 - 7650;
-    //Serial.print(" Poids B1 OFF:");
-    //Serial.println(weight_1);
+    weight_1 = weight_1 - 7750;
+    Serial.print(" Poids B1 OFF:");
+    Serial.print(weight_1);
 
     if (weight_1 < data_received.Weight_fut_empty_1 )
     {
@@ -319,12 +599,18 @@ void get_nb_beers_offline() //intégrer le système d'alarme des deux balances p
       }   
   }
 
-
+  
 
 
   if (Balance_2.is_ready())
   {
-    weight_2 = Balance_2.get_units(1);
+    //Balance_2.set_scale(23.553215003040);
+    //Serial.print("Scale B2:");
+    //Serial.print(Balance_2.get_scale());
+    weight_2 = -Balance_2.get_units(1);
+    weight_2 = weight_2 - 7750;
+    // Serial.print("  Poids B2 OFF:");
+    // Serial.println(weight_2);
 
     if (weight_2 < data_received.Weight_fut_empty_2 )
     {
@@ -365,31 +651,15 @@ void get_nb_beers_offline() //intégrer le système d'alarme des deux balances p
       alarms_default.B2_NoFut = 0;
       } 
   }
-}
 
-bool get_data()
-{
-  
-  if (Serial.available() > 0)
-  {
-    //delay(10);
-    //message = Serial.readStringUntil('\n');
-    message = Serial.readString(); //bonne fonction ne pas changer !!!
-    data = message;
-    //lcd.setCursor(0,1);  
-    //lcd.print(message);
-    //delay(10);
-    //digitalWrite(Pin_Rs485, HIGH);
-    //Serial.print("ArduinoReceived :");
-    //Serial.println(message);
-    //delay(10);
-    //digitalWrite(Pin_Rs485, LOW);
-    return 1;
-  }
-  else
-  {
-    return 0;  
-  }  
+
+  // Serial.print("                                                               Poids B1 OFF:");
+  // Serial.print(weight_1);
+  // Serial.print("  Poids B2 OFF:");
+  // Serial.print(weight_2);
+  // Serial.println("    ");
+  nb_balance_offline(weight_1,1);
+  nb_balance_offline(weight_2,2);
 }
 
 bool parse_data()
@@ -407,6 +677,7 @@ bool parse_data()
 
     if (startPos == 0 && (sub.toInt() != ID_Arduino_Soute))
     {
+      send_data_ok = 0;
       break;
     }
 
@@ -506,7 +777,7 @@ bool send_data_offline()
                       + String(data_send_offline.balance_ena_1) + "$"
                       + String(data_send_offline.balance_ena_2) + "$"
                       + data_send_offline.Name_1 + "$"
-                      + data_send_offline.Name_2 + "$Maes$Orval$"
+                      + data_send_offline.Name_2 + "$Maes$Speciale$"
                       + String(data_send_offline.Nb_beer_1) + "$" 
                       + String(data_send_offline.Nb_beer_2) + "$0$0$0$1$60000$Bienvenue au cercle$1$" ;
   digitalWrite(Led_B, HIGH);
@@ -520,66 +791,67 @@ bool send_data_offline()
   return 1;
 }
 
-void nb_balance_offline()
+void blink_led(bool OnOff, int ledpin, bool ledstate, unsigned long previousTime_blink, int Delay)
 {
-  if (data_send_offline.Nb_beer_1 >= 0)
-    {data_send_offline.balance_ena_1 = 1;}
-    else
-    {data_send_offline.balance_ena_1 = 0;}
-
-    if (data_send_offline.Nb_beer_2 >= 0)
-    {data_send_offline.balance_ena_2 = 1;}
-    else
-    {data_send_offline.balance_ena_1 = 0;}
-}
-
-void blink_led_Red(bool OnOff)
-{
-  if (((currentTime - previousTime_blink_R) >= Delay_led) && OnOff == true)
+  if (((delays.currentTime - previousTime_blink) >= Delay) && OnOff == true)
   {
-    previousTime_blink_R = currentTime;
-    ledstate_R = !ledstate_R;
-    digitalWrite(Led_R,ledstate_R);
-    //Serial.print("LED:   ");
-    //Serial.println(ledstate_R);
+    previousTime_blink = delays.currentTime;
+    ledstate = !ledstate;
+    digitalWrite(ledpin,ledstate);
   } 
   else if (OnOff == false)
   {
-    digitalWrite(Led_R,LOW);
+    digitalWrite(ledpin,LOW);
   } 
 }
 
-void blink_led_Orange(bool OnOff)
-{
-  if (((currentTime - previousTime_blink_O) >= Delay_led) && OnOff == true)
-  {
-    previousTime_blink_O = currentTime;
-    ledstate_O = !ledstate_O;
-    digitalWrite(Led_O,ledstate_O);
-    //Serial.print("LED:   ");
-    //Serial.println(ledstate_O);
-  }
-  else if (OnOff == false)
-  {
-    digitalWrite(Led_O,LOW);
-  }
-}
+// void blink_led_Red(bool OnOff)
+// {
+//   if (((currentTime - previousTime_blink_R) >= Delay_led) && OnOff == true)
+//   {
+//     previousTime_blink_R = currentTime;
+//     ledstate_R = !ledstate_R;
+//     digitalWrite(Led_R,ledstate_R);
+//     //Serial.print("LED:   ");
+//     //Serial.println(ledstate_R);
+//   } 
+//   else if (OnOff == false)
+//   {
+//     digitalWrite(Led_R,LOW);
+//   } 
+// }
 
-void blink_led_Green(bool OnOff)
-{
-  if (((currentTime - previousTime_blink_V) >= Delay_led) && OnOff == true)
-  {
-    previousTime_blink_V = currentTime;
-    ledstate_V = !ledstate_V;
-    digitalWrite(Led_V,ledstate_V);
-    //Serial.print("LED:   ");
-    //Serial.println(ledstate_V);
-  }
-  else if (OnOff == false)
-  {
-    digitalWrite(Led_V,LOW);
-  }
-}
+// void blink_led_Orange(bool OnOff)
+// {
+//   if (((currentTime - previousTime_blink_O) >= Delay_led) && OnOff == true)
+//   {
+//     previousTime_blink_O = currentTime;
+//     ledstate_O = !ledstate_O;
+//     digitalWrite(Led_O,ledstate_O);
+//     //Serial.print("LED:   ");
+//     //Serial.println(ledstate_O);
+//   }
+//   else if (OnOff == false)
+//   {
+//     digitalWrite(Led_O,LOW);
+//   }
+// }
+
+// void blink_led_Green(bool OnOff)
+// {
+//   if (((currentTime - previousTime_blink_V) >= Delay_led) && OnOff == true)
+//   {
+//     previousTime_blink_V = currentTime;
+//     ledstate_V = !ledstate_V;
+//     digitalWrite(Led_V,ledstate_V);
+//     //Serial.print("LED:   ");
+//     //Serial.println(ledstate_V);
+//   }
+//   else if (OnOff == false)
+//   {
+//     digitalWrite(Led_V,LOW);
+//   }
+// }
 
 void alarms_and_defaults()
 { 
@@ -611,13 +883,14 @@ void alarms_and_defaults()
   
   if (alarms_default.B1_EndFut == HIGH || alarms_default.B2_EndFut == HIGH || alarms_default.B1_NoFut == HIGH || alarms_default.B2_NoFut == HIGH ||alarms_default.Humidity_def || alarms_default.Temperature_def )
   {
-    blink_led_Orange(HIGH);
+    //blink_led_Orange(HIGH);
+    blink_led(HIGH,Led_O,ledstate_O,delays.previousTime_blink_O, delays.Delay_led);
     //Serial.print("Orange blink:");
     //Serial.print("ON  ");
   }
   else
   {
-    blink_led_Orange(LOW);
+    blink_led(LOW,Led_O,ledstate_O,delays.previousTime_blink_O, delays.Delay_led);
     //Serial.print("Orange blink:");
     //Serial.print("OFF ");
   }
@@ -643,7 +916,8 @@ void alarms_and_defaults()
   }
   else if (prob == LOW && alarms_default.Com_RPI_Arduino_def == HIGH )
   {
-    blink_led_Green(HIGH);
+    // blink_led_Green(HIGH);
+    blink_led(HIGH,Led_V,ledstate_V,delays.previousTime_blink_V, delays.Delay_led);
     //Serial.print("Vert blink:");
     //Serial.println("ON  ");
   }
@@ -671,6 +945,20 @@ void alarms_and_defaults()
                                 
 }
 
+// DEBUG FONCTIONS-----
+
+void teleplot_data()
+{
+  Serial.print(">Temp:");
+  Serial.println(data_send.Temp_Soute);
+  Serial.print(">Hum:");
+  Serial.println(data_send.Hum_Soute);
+  Serial.print(">B1_weight:");
+  Serial.println(datas.weight_1_zero);
+  Serial.print(">B2_weight:");
+  Serial.println(datas.weight_2_zero);
+}
+
 void valeurs_test()
 {
     // Valeur test
@@ -678,47 +966,45 @@ void valeurs_test()
   data_received.balance_ena_2 = false;
   data_received.Rho_beer_1 = 1.013;
   data_received.Rho_beer_2 = 1.013;
-  data_received.Weight_fut_empty_1 = 0;
+  data_received.Weight_fut_empty_1 = 1000;
   data_received.Weight_fut_empty_2 = 1000;
   data_received.Cl_beer_1 = 250;
-  data_received.Cl_beer_2 = 500;
+  data_received.Cl_beer_2 = 250;
+}
+
+void serial_debug()
+{
+  Serial.print("W1: ");
+  Serial.print(datas.weight_1);
+  Serial.print("  W2:");
+  Serial.print(datas.weight_2);
+  Serial.print(" || ");
+  Serial.print("  B1:");
+  Serial.print(data_send.Nb_beer_1);
+  Serial.print("  B2:");
+  Serial.print(data_send.Nb_beer_2);
+  Serial.print(" ||  D1 ");
+  Serial.print(alarms_default.Balance_1_Unplug);
+  Serial.print(alarms_default.Balance_1_def);
+  Serial.print(alarms_default.B1_EndFut);
+  Serial.print(alarms_default.B1_NoFut);
+  Serial.print(" ||  D2 ");
+  Serial.print(alarms_default.Balance_2_Unplug);
+  Serial.print(alarms_default.Balance_2_def);
+  Serial.print(alarms_default.B2_EndFut);
+  Serial.println(alarms_default.B2_NoFut);
 }
 
 // SETUP ---------------------------------------------------------------------
 
 void setup()
 {
-  pinMode(Led_R, OUTPUT);
-  pinMode(Led_O, OUTPUT);
-  pinMode(Led_V, OUTPUT);
-  pinMode(Led_B, OUTPUT);
-  pinMode(Pin_Rs485, OUTPUT);
-
-  digitalWrite(Led_R, LOW);
-  digitalWrite(Led_O, LOW);
-  digitalWrite(Led_V, LOW);
-  digitalWrite(Led_B, LOW);
-  digitalWrite(Pin_Rs485, LOW);
-
-  // Initialisation des balances
-  Balance_1.begin(DATA_HX711_1, CLK_HX711_1);
-  Balance_1.set_scale(20.0);
-  Balance_1.tare(0);
-  Balance_2.begin(DATA_HX711_2, CLK_HX711_2);
-  Balance_2.set_scale(20.0);
-  Balance_2.tare(0);
-
-  // Initialisation du capteur de température & humidité
-  dht.begin();
-
-  // Initialisation de la communication RS485
-  Serial.begin(115200);
-  Serial.println("Balance starting...");
-  Serial.setTimeout(50);
-  while (!Serial)
-  {
-  }
-
+  setup_led();
+  setup_balance();
+  setup_DHT();
+  setup_com();
+  // setup_LCD_debug();
+  
   // Séquence de démarrage
   for (byte i = 0; i < 2; i++)
   {
@@ -739,70 +1025,103 @@ void setup()
     digitalWrite(Led_B, LOW);
     delay(500);
   }
+
+  Serial.println("...");
   
-      
-  // Initialisation du LCD pour les tests
-  lcd.init();
-  lcd.clear();
-  lcd.backlight();
-  lcd.setCursor(0,0);  
-  lcd.print("Balance Info");
 }
 
 // LOOP ----------------------------------------------------------------------
 
 void loop()
 {
-  // Valeur test pour la communication
-  //data_send.Nb_beer_1 = 78;
-  //data_send.Nb_beer_2 = 154;
+  delays.currentTime = millis();
 
-  currentTime = millis();
+  valeurs_test();
 
-  time_send_data_ok = get_data();
+  send_data_ok = get_data();
 
-  if (time_send_data_ok == true)
-  {
-    Timer_Received_Data = currentTime;
-    time_send_data_ok = 0;
-  }
-  
   parse_data();
-  //valeurs_test();
-
-  if ((currentTime - previousTime_dht22) >= Delay_dht22) {
-    get_temp_hum();
-    previousTime_dht22 = currentTime;
-  }
+  sensors();
   
+  alarms_b1();
+  alarms_b2();
 
-  if ((currentTime - Timer_Received_Data) >= Delay_Received_Data) //Offline mode activation 
+  if ((delays.currentTime - delays.Timer_Received_Data) >= delays.Delay_Received_Data) //Offline mode activation 
   {
     alarms_default.Com_RPI_Arduino_def = 1;
-    previousTimer_Received_Data = currentTime;
-    get_nb_beers_offline();
-    nb_balance_offline();
+    delays.previousTimer_Received_Data = delays.currentTime;
 
-    if ((currentTime - previousTime_Send_Data_Offline) >= Delay_Send_Data_Offline)
+    if (alarms_default.Balance_1_Unplug == HIGH)
+    {data_send_offline.balance_ena_1 = 0;}
+    else
+    {data_send_offline.balance_ena_1 = 1;}
+    
+    if (alarms_default.Balance_2_Unplug == HIGH)
+    {data_send_offline.balance_ena_2 = 0;}
+    else
+    {data_send_offline.balance_ena_2 = 1;}
+    
+    get_nb_beers_b1(0);
+    get_nb_beers_b2(0);
+    if ((delays.currentTime - delays.previousTime_Send_Data_Offline) >= delays.Delay_Send_Data_Offline)
       {
       send_data_offline();
-      previousTime_Send_Data_Offline = currentTime;
-      }
-      
+      delays.previousTime_Send_Data_Offline = delays.currentTime;
+      }  
   }
   else
   {
     alarms_default.Com_RPI_Arduino_def = 0;
-    get_nb_beers();
-    if ((currentTime - previousTime_Send_Data) >= Delay_Send_Data)
-      {
-      //Serial.println("data send");
-      send_data();
-      previousTime_Send_Data = currentTime;
-      }
+    if (data_received.balance_ena_1 == 1)
+    {get_nb_beers_b1(1);}
+    if (data_received.balance_ena_2 == 1)
+    {get_nb_beers_b2(1);}
+    if (((delays.currentTime - delays.previousTime_Send_Data) >= delays.Delay_Send_Data) && send_data_ok == HIGH )
+      {send_data();
+      delays.previousTime_Send_Data = delays.currentTime;}
   }
-
   alarms_and_defaults();
+
+  //serial_debug();
+  //teleplot_data();
+
+//--------------------------------------------------------------
+
+  // Valeur test pour la communication
+  //data_send.Nb_beer_1 = 78;
+  //data_send.Nb_beer_2 = 154;
+  // delays.currentTime = millis();
+  // time_send_data_ok = get_data();
+  // if (time_send_data_ok == true)
+  // {
+  //   delays.Timer_Received_Data = delays.currentTime;
+  //   time_send_data_ok = 0;
+  // }
+  // parse_data();
+  // //valeurs_test();
+  // if ((delays.currentTime - delays.Timer_Received_Data) >= delays.Delay_Received_Data) //Offline mode activation 
+  // {
+  //   alarms_default.Com_RPI_Arduino_def = 1;
+  //   delays.previousTimer_Received_Data = delays.currentTime;
+  //   get_nb_beers_offline();
+  //   if ((delays.currentTime - delays.previousTime_Send_Data_Offline) >= delays.Delay_Send_Data_Offline)
+  //     {
+  //     send_data_offline();
+  //     delays.previousTime_Send_Data_Offline = delays.currentTime;
+  //     }  
+  // }
+  // else
+  // {
+  //   alarms_default.Com_RPI_Arduino_def = 0;
+  //   get_nb_beers();
+  //   if ((delays.currentTime - delays.previousTime_Send_Data) >= delays.Delay_Send_Data)
+  //     {
+  //     //Serial.println("data send");
+  //     send_data();
+  //     delays.previousTime_Send_Data = delays.currentTime;
+  //     }
+  // }
+  // alarms_and_defaults();
 } 
 
 

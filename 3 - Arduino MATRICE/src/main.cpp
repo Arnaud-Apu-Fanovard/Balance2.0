@@ -398,7 +398,7 @@ void setup() {
   // Initialise la communication série à 9600 bauds
   Serial.begin(115200);
   Serial.println("Matrice Starting...");
-  Serial.setTimeout(40);
+  Serial.setTimeout(25);
 
   // Initialisation com RS485
   pinMode(Pin_Rs485_2, OUTPUT);

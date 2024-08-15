@@ -15,13 +15,13 @@ Pin_Led = 16         #16 = GPIO 23
 
 Data_Send_Soute = {"ID_RS485":1,
                    "balance_ena_1" :1,    
-                   "balance_ena_2" :0,
+                   "balance_ena_2" :1,
                    "Name_beer_1" :"Maes",
                    "Name_beer_2" :"Lupulus",
                    "Rho_beer_1" : 1013.0,
                    "Rho_beer_2" : 1014.0,
-                   "Weight_fut_empty_1" : 0,
-                   "Weight_fut_empty_2" : 0,
+                   "Weight_fut_empty_1" : 6000,
+                   "Weight_fut_empty_2" : 6000,
                    "Cl_beer_1" : 250,
                    "Cl_beer_2" : 330}
 
@@ -47,6 +47,18 @@ Data_Received_Soute = {"Nb_beer_1":0,
                        "Nb_beer_2":0,
                        "Temp_Soute":20.0,
                        "Hum_Soute":50.0}
+
+# GLOBAL VARIABLE -----------------------------------------------------------
+
+currentTime = time.time()
+
+send = 0
+delay_1 = 0.1
+time_1 = 0
+previousTime_1 = time.time()
+
+
+
 
 # SETUP ---------------------------------------------------------------------
 
@@ -107,8 +119,8 @@ def get_data():
     #while Com_RS485.in_waiting <= 0:
             #time.sleep(0.01)
 
-    if Com_RS485.in_waiting > 0:
-        time.sleep(0.01)
+    # if Com_RS485.in_waiting > 0:
+    #     time.sleep(0.01)
     message_recu = Com_RS485.readline()
     print('message recu : ')
     print(message_recu,"\n")
@@ -128,6 +140,7 @@ def parse_data(data):
             Data_Received_Soute["Nb_beer_2"]= int(data_parse[2])
             Data_Received_Soute["Temp_Soute"]= float(data_parse[3])
             Data_Received_Soute["Hum_Soute"]= float(data_parse[4])
+            return 1
         
     except:
         print ("..")
@@ -161,17 +174,30 @@ def data_post_to_server():
 
 try:
     while True:
+        
+        currentTime = time.time()
 
         data_soute = get_data()
-        parse_data(data_soute)
+        receiv_OK = parse_data(data_soute)
         data_send_to_matrix_mapping()
-        send_data_soute()
-        time.sleep(0.05)
-        send_data_matrice()
-        
-        
 
-        time.sleep(0.05)
+        # send_data_soute()
+        # time.sleep(0.05)
+        # send_data_matrice()
+        # time.sleep(0.05)
+
+
+        if ( (currentTime - previousTime_1 ) >= delay_1):
+            previousTime_1 = currentTime
+
+            if send == 0:
+                send_data_soute()
+                send = 1  
+            else:
+                send_data_matrice()
+                send = 0
+           
+
 
 except KeyboardInterrupt :
     print ("Close Serial Communication")
