@@ -80,6 +80,7 @@ GPIO.output(Pin_Led, GPIO.LOW)
 def send_data_soute():
     GPIO.output(Pin_RS485_RPI, GPIO.HIGH)
     GPIO.output(Pin_Led, GPIO.HIGH)
+    
 
     message = ""
     print("Data send to Soute...")
@@ -121,7 +122,9 @@ def get_data():
 
     # if Com_RS485.in_waiting > 0:
     #     time.sleep(0.01)
+    Com_RS485.flush()
     message_recu = Com_RS485.readline()
+
     print('message recu : ')
     print(message_recu,"\n")
     #print(type(message_recu))
@@ -134,8 +137,15 @@ def parse_data(data):
         data_parse = data.decode('utf-8')
         #print(type(data_parse))
         data_parse = data_parse.split('$')
+        # print(data_parse[0])
+        # print(data_parse[1])
+        # print(data_parse[2])
 
-        if int(data_parse[0]) == 0:
+        long_data_ID = len(data_parse[0])
+        data_ID = data_parse[0]
+        print(data_ID[-1])
+
+        if data_parse[0][long_data_ID-1] == "0":
             Data_Received_Soute["Nb_beer_1"]= int(data_parse[1])
             Data_Received_Soute["Nb_beer_2"]= int(data_parse[2])
             Data_Received_Soute["Temp_Soute"]= float(data_parse[3])

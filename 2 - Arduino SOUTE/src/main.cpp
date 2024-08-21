@@ -762,10 +762,10 @@ bool send_data()
                       + String(alarms_default.Alarms_code) + "$";
   digitalWrite(Led_B, HIGH);
   digitalWrite(Pin_Rs485, HIGH);
-  //delay(10);
+  delay(2);
   //Serial.print("Arduino: ");
   Serial.println(data_to_send);
-  delay(10);
+  delay(8);
   digitalWrite(Pin_Rs485, LOW);
   digitalWrite(Led_B, LOW);
   return 1;
