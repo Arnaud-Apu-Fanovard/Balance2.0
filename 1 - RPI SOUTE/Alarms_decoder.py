@@ -20,7 +20,7 @@ if code_b [9] == '1':
 if code_b [8] == '1':
     print(" B2 ENDFut  ")
 if code_b [7] == '1':
-    print(" B2 ENDFut  ")
+    print(" B1 ENDFut  ")
 if code_b [6] == '1':
     print(" B2 Unplug  ")
 if code_b [5] == '1':

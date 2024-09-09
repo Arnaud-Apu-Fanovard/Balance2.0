@@ -779,7 +779,7 @@ bool send_data_offline()
                       + data_send_offline.Name_1 + "$"
                       + data_send_offline.Name_2 + "$Maes$Speciale$"
                       + String(data_send_offline.Nb_beer_1) + "$" 
-                      + String(data_send_offline.Nb_beer_2) + "$0$0$0$1$60000$Bienvenue au cercle$1$" ;
+                      + String(data_send_offline.Nb_beer_2) + "$0$0$0$1$30$Bienvenue au cercle$1$" ;
   digitalWrite(Led_B, HIGH);
   digitalWrite(Pin_Rs485, HIGH);
   //delay(10);
@@ -866,7 +866,7 @@ void alarms_and_defaults()
   bool prob;
   //Serial.println(alarms_default.Balance_1_Unplug);
   //Serial.println(alarms_default.Balance_2_Unplug);
-  if (alarms_default.Balance_1_Unplug == HIGH || alarms_default.Balance_2_Unplug == HIGH || alarms_default.Matrix_def == HIGH)
+  if ((alarms_default.Balance_1_Unplug == HIGH && data_received.balance_ena_1 == HIGH) || (alarms_default.Balance_2_Unplug == HIGH && data_received.balance_ena_1 == HIGH) || alarms_default.Matrix_def == HIGH)
   {
     digitalWrite(Led_R, HIGH);
     prob = 1;

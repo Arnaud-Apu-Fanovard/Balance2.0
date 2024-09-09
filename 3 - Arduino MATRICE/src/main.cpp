@@ -54,7 +54,7 @@ unsigned long previousTime = 0;
 unsigned long previousTime_2 = 0;
 long Delay_scroll;
 
-// exemple de trame recu : 2$1$0$Lux$Info$Maes:$Orval:$102$64$1$1$0$1$20$Bienvenue au cercle$0$
+// exemple de trame recu : 2$1$0$Lux$Info$Maes$Orval$102$64$1$1$0$1$20$Bienvenue au cercle$0$
 
 //INIT DE MES TABLEAUX DE STRUCTURES---------------------------------------------
 
@@ -102,7 +102,21 @@ bool get_data()
     //Serial.println(message);
     //delay(10);
     //digitalWrite(Pin_Rs485, LOW);
-    lcd.print(data);
+    // lcd.print(data);
+    // Serial.print(data);
+
+
+    // const char *DATA = data.c_str();
+    // Matrix.setFont(0, BigFontBottom);
+    // Matrix.setFont(1, BigFontUp);
+    // Matrix.displayZoneText(0, DATA, PA_CENTER, 30, 0, PA_SCROLL_LEFT, PA_SCROLL_LEFT);
+    // Matrix.displayZoneText(1, DATA, PA_CENTER, 30, 0, PA_SCROLL_LEFT, PA_SCROLL_LEFT);
+    // Matrix.synchZoneStart();
+    // while (!Matrix.getZoneStatus(0) || !Matrix.getZoneStatus(1))
+    // Matrix.displayAnimate();
+
+
+
     return 1;
   }
   else
@@ -427,11 +441,11 @@ void setup() {
   Matrix.displayAnimate();
 
   // Initialisation du LCD pour les tests
-  lcd.init();
-  lcd.clear();
-  lcd.backlight();
-  lcd.setCursor(0,0);  
-  lcd.print("Balance Info");
+  // lcd.init();
+  // lcd.clear();
+  // lcd.backlight();
+  // lcd.setCursor(0,0);  
+  // lcd.print("Balance Info");
 
 }
 

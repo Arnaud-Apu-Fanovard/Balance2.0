@@ -15,32 +15,31 @@ Pin_Led = 16         #16 = GPIO 23
 
 Data_Send_Soute = {"ID_RS485":1,
                    "balance_ena_1" :1,    
-                   "balance_ena_2" :1,
-                   "Name_beer_1" :"Maes",
+                   "balance_ena_2" :0,
+                   "Name_beer_1" :"Jupiler",
                    "Name_beer_2" :"Lupulus",
                    "Rho_beer_1" : 1013.0,
                    "Rho_beer_2" : 1014.0,
                    "Weight_fut_empty_1" : 6000,
                    "Weight_fut_empty_2" : 6000,
                    "Cl_beer_1" : 250,
-                   "Cl_beer_2" : 330}
-
+                   "Cl_beer_2" : 250}
 
 Data_Send_Matrice = {"ID_RS485":2,
                      "balance_ena_1":1,
                      "balance_ena_2":0,
                      "Name_1": "Info",
                      "Name_2": "Lux",
-                     "Name_beer1": "Lupulus",
-                     "Name_beer2": "..",
+                     "Name_beer1": "Biere",
+                     "Name_beer2": "Pils",
                      "Nb_beer_1": 0,
                      "Nb_beer_2": 0,
-                     "Option_Name_1":1,
-                     "Option_Name_2":1,
+                     "Option_Name_1":0,
+                     "Option_Name_2":0,
                      "Text_const":0,
-                     "Scroll":0,
-                     "Freq_text":0,
-                     "Text_to_print": "SUUUUUU",
+                     "Scroll":1,
+                     "Freq_text":300, #secondes
+                     "Text_to_print": "Test d'affichage 3", 
                      "Offline":0}
 
 Data_Received_Soute = {"Nb_beer_1":0,
@@ -142,8 +141,8 @@ def parse_data(data):
         # print(data_parse[2])
 
         long_data_ID = len(data_parse[0])
-        data_ID = data_parse[0]
-        print(data_ID[-1])
+        # data_ID = data_parse[0]
+        print(int(data_parse[1]))
 
         if data_parse[0][long_data_ID-1] == "0":
             Data_Received_Soute["Nb_beer_1"]= int(data_parse[1])
@@ -206,6 +205,8 @@ try:
             else:
                 send_data_matrice()
                 send = 0
+
+        # time.sleep(0.05)
            
 
 
