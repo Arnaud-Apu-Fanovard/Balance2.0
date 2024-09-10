@@ -358,7 +358,7 @@ void alarms_b1() //2.0
 void alarms_b2() //2.0
 {
   if (delays.currentTime - delays.Delay_balance > delays.previousTime_b2 )
-  {
+  { 
     alarms_default.Balance_2_Unplug = 1;
     // alarms_default.Balance_2_def = 0;
     alarms_default.B2_EndFut = 0;
@@ -777,9 +777,9 @@ bool send_data_offline()
                       + String(data_send_offline.balance_ena_1) + "$"
                       + String(data_send_offline.balance_ena_2) + "$"
                       + data_send_offline.Name_1 + "$"
-                      + data_send_offline.Name_2 + "$Maes$Speciale$"
+                      + data_send_offline.Name_2 + "$Biere 1$Biere 2$"
                       + String(data_send_offline.Nb_beer_1) + "$" 
-                      + String(data_send_offline.Nb_beer_2) + "$0$0$0$1$30$Bienvenue au cercle$1$" ;
+                      + String(data_send_offline.Nb_beer_2) + "$0$0$0$1$300$Bienvenu au cercle$1$" ;
   digitalWrite(Led_B, HIGH);
   digitalWrite(Pin_Rs485, HIGH);
   //delay(10);
@@ -881,7 +881,14 @@ void alarms_and_defaults()
     //Serial.print("OFF ");
   }
   
-  if (alarms_default.B1_EndFut == HIGH || alarms_default.B2_EndFut == HIGH || alarms_default.B1_NoFut == HIGH || alarms_default.B2_NoFut == HIGH ||alarms_default.Humidity_def || alarms_default.Temperature_def )
+  
+  if (alarms_default.Balance_1_def == HIGH || alarms_default.Balance_2_def == HIGH)
+  {
+    digitalWrite(Led_O, HIGH);
+    //Serial.print("Orange:");
+    //Serial.print("ON  ");
+  }
+  else if (alarms_default.B1_EndFut == HIGH || alarms_default.B2_EndFut == HIGH || alarms_default.B1_NoFut == HIGH || alarms_default.B2_NoFut == HIGH ||alarms_default.Humidity_def || alarms_default.Temperature_def )
   {
     //blink_led_Orange(HIGH);
     blink_led(HIGH,Led_O,ledstate_O,delays.previousTime_blink_O, delays.Delay_led);
@@ -890,23 +897,11 @@ void alarms_and_defaults()
   }
   else
   {
-    blink_led(LOW,Led_O,ledstate_O,delays.previousTime_blink_O, delays.Delay_led);
-    //Serial.print("Orange blink:");
-    //Serial.print("OFF ");
-  }
-
-  if (alarms_default.Balance_1_def == HIGH || alarms_default.Balance_2_def == HIGH)
-  {
-    digitalWrite(Led_O, HIGH);
-    //Serial.print("Orange:");
-    //Serial.print("ON  ");
-  }
-  else
-  {
     digitalWrite(Led_O, LOW);
     //Serial.print("Orange:");
     //Serial.print("OFF ");
   }
+
 
   if (prob == HIGH)
   {
@@ -1036,18 +1031,18 @@ void loop()
 {
   delays.currentTime = millis();
 
-  valeurs_test();
+  //valeurs_test();
 
   send_data_ok = get_data();
 
   parse_data();
   sensors();
-  
-  alarms_b1();
-  alarms_b2();
 
   if ((delays.currentTime - delays.Timer_Received_Data) >= delays.Delay_Received_Data) //Offline mode activation 
   {
+    alarms_b1();
+    alarms_b2();
+    
     alarms_default.Com_RPI_Arduino_def = 1;
     delays.previousTimer_Received_Data = delays.currentTime;
 
@@ -1071,6 +1066,25 @@ void loop()
   }
   else
   {
+    if (data_received.balance_ena_1 == 1 && data_received.balance_ena_2 == 1)
+    {
+      alarms_b1();
+      alarms_b2();
+    }
+    else if (data_received.balance_ena_1 == 1 && data_received.balance_ena_2 == 0)
+    {alarms_b1();
+    alarms_default.Balance_2_Unplug = 0;
+    alarms_default.Balance_2_def = 0;
+    alarms_default.B2_EndFut = 0;
+    alarms_default.B2_NoFut = 0;}
+    else if (data_received.balance_ena_2 == 1 && data_received.balance_ena_1 == 0)
+    {alarms_b2();
+    alarms_default.Balance_1_Unplug = 0;
+    alarms_default.Balance_1_def = 0;
+    alarms_default.B1_EndFut = 0;
+    alarms_default.B1_NoFut = 0;}
+
+
     alarms_default.Com_RPI_Arduino_def = 0;
     if (data_received.balance_ena_1 == 1)
     {get_nb_beers_b1(1);}

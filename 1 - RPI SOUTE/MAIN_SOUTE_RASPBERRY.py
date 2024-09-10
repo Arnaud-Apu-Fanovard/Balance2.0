@@ -4,6 +4,8 @@
 import serial
 import time
 import RPi.GPIO as GPIO
+import requests
+import json
 
 # INIT DES IO--------------------------------------------------------------------
 
@@ -47,6 +49,7 @@ Data_Received_Soute = {"Nb_beer_1":0,
                        "Temp_Soute":20.0,
                        "Hum_Soute":50.0}
 
+
 # GLOBAL VARIABLE -----------------------------------------------------------
 
 currentTime = time.time()
@@ -54,7 +57,9 @@ currentTime = time.time()
 send = 0
 delay_1 = 0.1
 time_1 = 0
-previousTime_1 = time.time()
+previousTime_1 = currentTime
+previousTime_2 = currentTime
+delay_2 = 1
 
 
 
@@ -165,16 +170,40 @@ def parse_data(data):
 def data_received_from_soute_mapping():
     return
 
-def data_send_to_soute_mapping():
-    return
-
 def data_send_to_matrix_mapping():
     Data_Send_Matrice["Nb_beer_1"] = Data_Received_Soute["Nb_beer_1"]
     Data_Send_Matrice["Nb_beer_2"] = Data_Received_Soute["Nb_beer_2"]
     return
 
-def data_get_from_server():
-    return
+def data_get_from_server_1():
+    try:
+        req = requests.get("https://balance.e-kot.be/balance/balance") 
+        status_serv = req.status_code
+        data = json.loads(req.text)
+        Data_Send_Soute["balance_ena_1"] = data[0]['activated']
+        Data_Send_Soute["balance_ena_2"] = data[1]['activated']
+        Data_Send_Matrice["balance_ena_1"] = data[0]['activated']
+        Data_Send_Matrice["balance_ena_2"] = data[1]['activated']
+        Data_Send_Matrice["Name_1"] = data[0]['nomSimple']
+        Data_Send_Matrice["Name_2"] = data[1]['nomSimple']
+        Data_Send_Matrice["Option_Name_1"] = data[0]['nameBeerOrCollective']
+        Data_Send_Matrice["Option_Name_2"] = data[1]['nameBeerOrCollective']
+        return status_serv
+    except:
+        return 0
+
+def data_get_from_server_2():
+    req = requests.get("https://balance.e-kot.be/balance/beers_on_balance") 
+    status_serv = req.status_code
+    data = req.text
+    data = json.loads(req.text)
+    Data_Send_Soute["Cl_beer_1"] = data['balance_1']['quantity'] *125
+    Data_Send_Soute["Cl_beer_2"] = data['balance_2']['quantity'] *125
+    Data_Send_Soute["Weight_fut_empty_1"] = data['balance_1']['weight_empty'] *3000
+    Data_Send_Soute["Weight_fut_empty_2"] = data['balance_2']['weight_empty'] *3000
+    Data_Send_Soute["Rho_beer_1"] = data['balance_1']['rho'] * 1000
+    Data_Send_Soute["Rho_beer_2"] = data['balance_2']['rho'] * 1000
+    return status_serv
 
 def data_post_to_server():
     return
@@ -185,6 +214,12 @@ try:
     while True:
         
         currentTime = time.time()
+
+        if ( (currentTime - previousTime_2 ) >= delay_2):
+            previousTime_2 = currentTime
+            data_get_from_server_1()
+            data_get_from_server_2()
+
 
         data_soute = get_data()
         receiv_OK = parse_data(data_soute)
@@ -205,6 +240,8 @@ try:
             else:
                 send_data_matrice()
                 send = 0
+        print(Data_Send_Soute["balance_ena_1"])
+        print(Data_Send_Soute["balance_ena_2"])
 
         # time.sleep(0.05)
            
